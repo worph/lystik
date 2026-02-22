@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Open List</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- SVG Icon Definitions -->
+  <svg style="display: none;">
+    <defs>
+      <!-- Square checkbox (unchecked) -->
+      <symbol id="icon-square" viewBox="0 0 24 24">
+        <rect x="3" y="3" width="18" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
+      </symbol>
+      <!-- Square checkbox (checked with checkmark) -->
+      <symbol id="icon-check-square" viewBox="0 0 24 24">
+        <rect x="3" y="3" width="18" height="18" rx="2" fill="currentColor"/>
+        <path d="M9 12l2 2 4-4" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </symbol>
+      <!-- Delete (X) -->
+      <symbol id="icon-x" viewBox="0 0 24 24">
+        <path d="M18 6L6 18M6 6l12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </symbol>
+      <!-- Add (plus) -->
+      <symbol id="icon-plus" viewBox="0 0 24 24">
+        <path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </symbol>
+      <!-- Collapse (chevron down) -->
+      <symbol id="icon-chevron-down" viewBox="0 0 24 24">
+        <path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </symbol>
+      <!-- Drag handle (6 dots) -->
+      <symbol id="icon-grip" viewBox="0 0 24 24">
+        <circle cx="9" cy="6" r="1.5" fill="currentColor"/>
+        <circle cx="15" cy="6" r="1.5" fill="currentColor"/>
+        <circle cx="9" cy="12" r="1.5" fill="currentColor"/>
+        <circle cx="15" cy="12" r="1.5" fill="currentColor"/>
+        <circle cx="9" cy="18" r="1.5" fill="currentColor"/>
+        <circle cx="15" cy="18" r="1.5" fill="currentColor"/>
+      </symbol>
+    </defs>
+  </svg>
+
+  <div class="note-card" id="note-card">
+    <div class="note-header">
+      <span class="note-title">Open List</span>
+      <button id="notify-btn" class="notify-btn">Enable Notifications</button>
+    </div>
+
+    <ul class="items-list" id="items-active"></ul>
+
+    <div class="add-item-row">
+      <svg class="icon icon-add"><use href="#icon-plus"/></svg>
+      <input type="text" id="item-input" placeholder="List item" autocomplete="off">
+    </div>
+
+    <div class="completed-section" id="completed-section">
+      <div class="completed-header" id="completed-header">
+        <svg class="icon icon-chevron" id="collapse-icon"><use href="#icon-chevron-down"/></svg>
+        <span class="completed-count" id="completed-count">0 completed items</span>
+      </div>
+      <ul class="items-list items-completed" id="items-completed"></ul>
+    </div>
+  </div>
+
+  <!-- Undo Snackbar -->
+  <div class="snackbar" id="snackbar">
+    <span class="snackbar-text">Item deleted</span>
+    <button class="snackbar-action" id="snackbar-undo">Undo</button>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
