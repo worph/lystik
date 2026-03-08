@@ -1,0 +1,17 @@
+name: lystik-dev
+
+services:
+  lystik:
+    build: .
+    container_name: lystik-dev
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    environment:
+      - TZ=Europe/Paris
+      - PORT=80
+      - DATA_DIR=/data
+    volumes:
+      - ./data:/data
+      - ./src:/app/src
+      - ./test:/app/test

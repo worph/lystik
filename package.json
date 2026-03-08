@@ -1,5 +1,5 @@
 {
-  "name": "open-list",
+  "name": "lystik",
   "version": "1.0.0",
   "description": "Minimal single-list checkbox application with real-time notifications",
   "main": "src/server.js",

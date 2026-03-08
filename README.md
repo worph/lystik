@@ -1,6 +1,6 @@
-# open-list
+# Lystik
 
-A minimal, single-list checkbox application designed for simplicity.
+A minimal, single shared checkbox list with real-time sync.
 
 ## Features
 
@@ -12,8 +12,8 @@ A minimal, single-list checkbox application designed for simplicity.
 ## Quick Start
 
 ```bash
-docker build -t open-list .
-docker run -d -p 80:80 -v /path/to/data:/data open-list
+docker build -t lystik .
+docker run -d -p 80:80 -v /path/to/data:/data lystik
 ```
 
 Access the web UI at `http://localhost`.
@@ -80,7 +80,7 @@ server {
     # SSL/Auth handled here
 
     location / {
-        proxy_pass http://open-list:80;
+        proxy_pass http://lystik:80;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
