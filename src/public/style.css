@@ -52,8 +52,8 @@ body {
   color: #202124;
 }
 
-/* Notification button */
-.notify-btn {
+/* Install button */
+.install-btn {
   padding: 6px 12px;
   background: #1a73e8;
   color: white;
@@ -61,14 +61,20 @@ body {
   border-radius: 4px;
   font-size: 12px;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background 0.2s, opacity 0.2s;
 }
 
-.notify-btn:hover {
+.install-btn:hover:not(:disabled) {
   background: #1557b0;
 }
 
-.notify-btn.hidden {
+.install-btn:disabled {
+  background: #9aa0a6;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.install-btn.hidden {
   display: none;
 }
 
@@ -362,7 +368,7 @@ body {
     font-size: 16px;
   }
 
-  .notify-btn {
+  .install-btn {
     padding: 8px 14px;
     font-size: 13px;
   }
