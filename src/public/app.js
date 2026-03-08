@@ -5,38 +5,46 @@
   const completedSection = document.getElementById('completed-section');
   const completedHeader = document.getElementById('completed-header');
   const completedCount = document.getElementById('completed-count');
-  const notifyBtn = document.getElementById('notify-btn');
   const snackbar = document.getElementById('snackbar');
   const snackbarUndo = document.getElementById('snackbar-undo');
+  const installBtn = document.getElementById('install-btn');
 
   let items = [];
   let deletedItem = null;
   let snackbarTimeout = null;
   let draggedItem = null;
+  let deferredPrompt = null;
 
-  // Notification permission
-  if ('Notification' in window) {
-    if (Notification.permission === 'granted' || Notification.permission === 'denied') {
-      notifyBtn.classList.add('hidden');
-    }
-  } else {
-    notifyBtn.classList.add('hidden');
+  // PWA Install handling
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+    || window.navigator.standalone === true;
+
+  if (isStandalone) {
+    // Already installed, hide the button
+    installBtn.classList.add('hidden');
   }
 
-  notifyBtn.addEventListener('click', async () => {
-    if ('Notification' in window) {
-      const permission = await Notification.requestPermission();
-      if (permission === 'granted' || permission === 'denied') {
-        notifyBtn.classList.add('hidden');
-      }
-    }
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    installBtn.disabled = false;
   });
 
-  function showNotification(title, body) {
-    if ('Notification' in window && Notification.permission === 'granted') {
-      new Notification(title, { body });
+  window.addEventListener('appinstalled', () => {
+    installBtn.classList.add('hidden');
+    deferredPrompt = null;
+  });
+
+  installBtn.addEventListener('click', async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      installBtn.classList.add('hidden');
     }
-  }
+    deferredPrompt = null;
+    installBtn.disabled = true;
+  });
 
   // Render item
   function renderItem(item) {
@@ -275,7 +283,6 @@
       if (!items.find(i => i.id === item.id)) {
         items.push(item);
         renderItems();
-        showNotification('Item Added', item.text);
       }
     });
 
@@ -292,7 +299,6 @@
       const item = JSON.parse(e.data);
       items = items.filter(i => i.id !== item.id);
       renderItems();
-      showNotification('Item Deleted', item.text);
     });
 
     eventSource.addEventListener('items-reordered', (e) => {
