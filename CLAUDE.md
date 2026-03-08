@@ -69,3 +69,52 @@ docker compose exec lystik node --test test/api.test.js  # Run specific test fil
 
 - `PORT` - HTTP port (default: 80)
 - `DATA_DIR` - JSON storage directory (default: `/data` in container, `./data` locally)
+
+## MCP Integration
+
+Lystik supports the Model Context Protocol (MCP) for AI assistant integration. The endpoint accepts JSON-RPC 2.0 requests.
+
+**Endpoint:** `POST /mcp`
+
+### Available Tools
+
+| Tool | Description | Parameters |
+|------|-------------|------------|
+| `list_items` | Get all tasks | none |
+| `add_item` | Add a new task | `text` (string) |
+| `toggle_item` | Toggle checked state | `id` (string) |
+| `delete_item` | Delete a task | `id` (string) |
+
+### Example Usage
+
+```bash
+# Initialize
+curl -X POST http://localhost:3000/mcp \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"test","version":"1.0.0"}}}'
+
+# List tools
+curl -X POST http://localhost:3000/mcp \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/list"}'
+
+# Add item
+curl -X POST http://localhost:3000/mcp \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"add_item","arguments":{"text":"Buy groceries"}}}'
+
+# List items
+curl -X POST http://localhost:3000/mcp \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"list_items","arguments":{}}}'
+
+# Toggle item (replace <id> with actual item ID)
+curl -X POST http://localhost:3000/mcp \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"toggle_item","arguments":{"id":"<id>"}}}'
+
+# Delete item
+curl -X POST http://localhost:3000/mcp \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"delete_item","arguments":{"id":"<id>"}}}'
+```
