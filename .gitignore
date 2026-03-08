@@ -1,2 +1,4 @@
 .claude/settings.local.json
 IMPLEMENTATION_NOTE.md
+node_modules/
+data/
