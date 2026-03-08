@@ -131,6 +131,133 @@ app.delete('/api/items/:id', (req, res) => {
   }
 });
 
+// MCP (Model Context Protocol) endpoint
+const MCP_PROTOCOL_VERSION = '2025-03-26';
+
+class McpError extends Error {
+  constructor(code, message) {
+    super(message);
+    this.code = code;
+  }
+}
+
+const MCP_TOOLS = [
+  {
+    name: 'list_items',
+    description: 'Get all tasks from the list',
+    inputSchema: { type: 'object', properties: {}, required: [] }
+  },
+  {
+    name: 'add_item',
+    description: 'Add a new task to the list',
+    inputSchema: {
+      type: 'object',
+      properties: { text: { type: 'string', description: 'The task text' } },
+      required: ['text']
+    }
+  },
+  {
+    name: 'toggle_item',
+    description: 'Toggle the checked state of a task',
+    inputSchema: {
+      type: 'object',
+      properties: { id: { type: 'string', description: 'The task ID' } },
+      required: ['id']
+    }
+  },
+  {
+    name: 'delete_item',
+    description: 'Delete a task from the list',
+    inputSchema: {
+      type: 'object',
+      properties: { id: { type: 'string', description: 'The task ID' } },
+      required: ['id']
+    }
+  }
+];
+
+function handleToolCall(name, args) {
+  switch (name) {
+    case 'list_items': {
+      const items = storage.getSortedItems();
+      return { content: [{ type: 'text', text: JSON.stringify(items, null, 2) }] };
+    }
+    case 'add_item': {
+      if (!args.text || !args.text.trim()) {
+        throw new McpError(-32602, 'text parameter is required');
+      }
+      const item = storage.addItem(args.text);
+      broadcast('item-added', item);
+      return { content: [{ type: 'text', text: JSON.stringify(item, null, 2) }] };
+    }
+    case 'toggle_item': {
+      if (!args.id) {
+        throw new McpError(-32602, 'id parameter is required');
+      }
+      const item = storage.toggleItem(args.id);
+      if (!item) {
+        throw new McpError(-32602, 'Item not found');
+      }
+      broadcast('item-updated', item);
+      return { content: [{ type: 'text', text: JSON.stringify(item, null, 2) }] };
+    }
+    case 'delete_item': {
+      if (!args.id) {
+        throw new McpError(-32602, 'id parameter is required');
+      }
+      const item = storage.deleteItem(args.id);
+      if (!item) {
+        throw new McpError(-32602, 'Item not found');
+      }
+      broadcast('item-deleted', item);
+      return { content: [{ type: 'text', text: JSON.stringify(item, null, 2) }] };
+    }
+    default:
+      throw new McpError(-32602, `Unknown tool: ${name}`);
+  }
+}
+
+function handleMcpMethod(method, params) {
+  switch (method) {
+    case 'initialize':
+      return {
+        protocolVersion: MCP_PROTOCOL_VERSION,
+        capabilities: { tools: {} },
+        serverInfo: { name: 'lystik', version: '1.0.0' }
+      };
+    case 'notifications/initialized':
+      return {};
+    case 'tools/list':
+      return { tools: MCP_TOOLS };
+    case 'tools/call':
+      if (!params || !params.name) {
+        throw new McpError(-32602, 'Tool name is required');
+      }
+      return handleToolCall(params.name, params.arguments || {});
+    default:
+      throw new McpError(-32601, `Method not found: ${method}`);
+  }
+}
+
+app.post('/mcp', (req, res) => {
+  const { jsonrpc, id, method, params } = req.body;
+
+  if (jsonrpc !== '2.0') {
+    return res.json({ jsonrpc: '2.0', id, error: { code: -32600, message: 'Invalid Request' } });
+  }
+
+  try {
+    const result = handleMcpMethod(method, params);
+    res.json({ jsonrpc: '2.0', id, result });
+  } catch (error) {
+    if (error instanceof McpError) {
+      res.json({ jsonrpc: '2.0', id, error: { code: error.code, message: error.message } });
+    } else {
+      res.json({ jsonrpc: '2.0', id, error: { code: -32603, message: 'Internal error' } });
+    }
+  }
+});
+
 // Export for testing
 module.exports = app;
 
