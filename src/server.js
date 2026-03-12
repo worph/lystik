@@ -134,6 +134,9 @@ app.delete('/api/items/:id', (req, res) => {
 // MCP (Model Context Protocol) endpoint
 const MCP_PROTOCOL_VERSION = '2025-03-26';
 
+// MCP SSE sessions (sessionId -> response object)
+const mcpSseSessions = new Map();
+
 class McpError extends Error {
   constructor(code, message) {
     super(message);
@@ -239,22 +242,64 @@ function handleMcpMethod(method, params) {
   }
 }
 
+// MCP SSE endpoint (GET for SSE transport)
+app.get('/mcp', (req, res) => {
+  const sessionId = require('crypto').randomUUID();
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  // Store session
+  mcpSseSessions.set(sessionId, res);
+
+  // Send endpoint event with POST URL
+  const postEndpoint = `/mcp?sessionId=${sessionId}`;
+  res.write(`event: endpoint\ndata: ${postEndpoint}\n\n`);
+
+  req.on('close', () => {
+    mcpSseSessions.delete(sessionId);
+  });
+});
+
+// MCP HTTP endpoint (POST for both HTTP and SSE transports)
 app.post('/mcp', (req, res) => {
   const { jsonrpc, id, method, params } = req.body;
+  const sessionId = req.query.sessionId;
 
   if (jsonrpc !== '2.0') {
-    return res.json({ jsonrpc: '2.0', id, error: { code: -32600, message: 'Invalid Request' } });
+    const error = { jsonrpc: '2.0', id, error: { code: -32600, message: 'Invalid Request' } };
+    if (sessionId && mcpSseSessions.has(sessionId)) {
+      mcpSseSessions.get(sessionId).write(`event: message\ndata: ${JSON.stringify(error)}\n\n`);
+      return res.status(202).send();
+    }
+    return res.json(error);
   }
 
   try {
     const result = handleMcpMethod(method, params);
-    res.json({ jsonrpc: '2.0', id, result });
-  } catch (error) {
-    if (error instanceof McpError) {
-      res.json({ jsonrpc: '2.0', id, error: { code: error.code, message: error.message } });
-    } else {
-      res.json({ jsonrpc: '2.0', id, error: { code: -32603, message: 'Internal error' } });
+    const response = { jsonrpc: '2.0', id, result };
+
+    // If SSE session exists, send via SSE
+    if (sessionId && mcpSseSessions.has(sessionId)) {
+      mcpSseSessions.get(sessionId).write(`event: message\ndata: ${JSON.stringify(response)}\n\n`);
+      return res.status(202).send();
     }
+
+    // Otherwise, respond directly (HTTP transport)
+    res.json(response);
+  } catch (error) {
+    const errorResponse = error instanceof McpError
+      ? { jsonrpc: '2.0', id, error: { code: error.code, message: error.message } }
+      : { jsonrpc: '2.0', id, error: { code: -32603, message: 'Internal error' } };
+
+    if (sessionId && mcpSseSessions.has(sessionId)) {
+      mcpSseSessions.get(sessionId).write(`event: message\ndata: ${JSON.stringify(errorResponse)}\n\n`);
+      return res.status(202).send();
+    }
+
+    res.json(errorResponse);
   }
 });
 
