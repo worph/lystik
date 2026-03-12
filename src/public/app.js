@@ -15,6 +15,24 @@
   let draggedItem = null;
   let deferredPrompt = null;
 
+  // SSE retry state
+  let sseRetryCount = 0;
+  const SSE_MAX_RETRIES = 5;
+  const SSE_BASE_DELAY = 3000;
+
+  // Auth redirect detection
+  function isAuthRedirect(response) {
+    return response.redirected && response.url.includes('/login');
+  }
+
+  function showAuthError() {
+    activeList.innerHTML = '';
+    const error = document.createElement('li');
+    error.className = 'empty-message error-message';
+    error.textContent = 'Authentication required. Please refresh or log in.';
+    activeList.appendChild(error);
+  }
+
   // PWA Install handling
   const isStandalone = window.matchMedia('(display-mode: standalone)').matches
     || window.navigator.standalone === true;
@@ -158,10 +176,16 @@
   async function loadItems() {
     try {
       const res = await fetch('/api/items');
+      if (isAuthRedirect(res)) {
+        showAuthError();
+        return;
+      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       items = await res.json();
       renderItems();
     } catch (error) {
       console.error('Failed to load items:', error);
+      showAuthError();
     }
   }
 
@@ -276,6 +300,7 @@
 
     eventSource.addEventListener('connected', () => {
       console.log('SSE connected');
+      sseRetryCount = 0; // Reset on successful connection
     });
 
     eventSource.addEventListener('item-added', (e) => {
@@ -318,9 +343,15 @@
     });
 
     eventSource.onerror = () => {
-      console.log('SSE connection lost, reconnecting...');
       eventSource.close();
-      setTimeout(connectSSE, 3000);
+      if (sseRetryCount < SSE_MAX_RETRIES) {
+        const delay = SSE_BASE_DELAY * Math.pow(2, sseRetryCount);
+        console.log(`SSE connection lost, retry ${sseRetryCount + 1}/${SSE_MAX_RETRIES} in ${delay}ms`);
+        sseRetryCount++;
+        setTimeout(connectSSE, delay);
+      } else {
+        console.error('SSE connection failed after max retries. Auth may be required.');
+      }
     };
   }
 
