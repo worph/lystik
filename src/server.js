@@ -1,9 +1,12 @@
 const express = require('express');
 const path = require('path');
 const storage = require('./storage');
+const { createDiscoveryResponder } = require('./mcp-announce');
 
 const app = express();
 const PORT = process.env.PORT || 80;
+const MCP_PORT = parseInt(process.env.MCP_PORT || PORT, 10);
+const DISCOVERY_PORT = parseInt(process.env.DISCOVERY_PORT || '9099', 10);
 
 // SSE clients
 const clients = new Set();
@@ -277,6 +280,12 @@ app.post('/mcp', (req, res) => {
     return res.json(error);
   }
 
+  // Notifications (no id) don't get a response
+  if (id === undefined || id === null) {
+    try { handleMcpMethod(method, params); } catch { /* ignore */ }
+    return res.status(202).send();
+  }
+
   try {
     const result = handleMcpMethod(method, params);
     const response = { jsonrpc: '2.0', id, result };
@@ -310,5 +319,13 @@ module.exports = app;
 if (require.main === module) {
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
+
+    createDiscoveryResponder({
+      name: 'lystik',
+      description: 'Task list manager — add, list, toggle, and delete tasks',
+      tools: MCP_TOOLS,
+      port: MCP_PORT,
+      listenPort: DISCOVERY_PORT,
+    });
   });
 }

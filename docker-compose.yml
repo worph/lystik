@@ -6,12 +6,21 @@ services:
     container_name: lystik-dev
     restart: unless-stopped
     ports:
-      - "3000:80"
+      - "9301:80"
     environment:
       - TZ=Europe/Paris
       - PORT=80
+      - MCP_PORT=80
+      - DISCOVERY_PORT=9099
       - DATA_DIR=/data
     volumes:
       - ./data:/data
       - ./src:/app/src
       - ./test:/app/test
+    networks:
+      - default
+      - mcp-net
+
+networks:
+  mcp-net:
+    external: true
