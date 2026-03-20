@@ -66,6 +66,35 @@ Users must grant notification permissions in their browser.
 | `DELETE` | `/api/items/:id` | Remove an item |
 | `GET` | `/api/events` | SSE endpoint for real-time updates |
 
+## MCP Integration (Claude Code)
+
+Lystik exposes an MCP (Model Context Protocol) endpoint at `/mcp`, allowing AI assistants like Claude Code to manage list items directly.
+
+### Adding as a Project-level MCP Server
+
+Scoped to this project only (saved in `.mcp.json`):
+
+```bash
+claude mcp add --transport http lystik http://localhost:3000/mcp
+```
+
+### Adding as a User-level MCP Server
+
+Available across all your projects (saved in `~/.claude.json`):
+
+```bash
+claude mcp add --scope user --transport http lystik http://localhost:3000/mcp
+```
+
+### Available Tools
+
+| Tool | Description | Parameters |
+|------|-------------|------------|
+| `list_items` | Get all tasks | none |
+| `add_item` | Add a new task | `text` (string) |
+| `toggle_item` | Toggle checked state | `id` (string) |
+| `delete_item` | Delete a task | `id` (string) |
+
 ## Deployment
 
 ### Behind a Reverse Proxy
