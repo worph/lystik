@@ -15,11 +15,6 @@
   let draggedItem = null;
   let deferredPrompt = null;
 
-  // SSE retry state
-  let sseRetryCount = 0;
-  const SSE_MAX_RETRIES = 5;
-  const SSE_BASE_DELAY = 3000;
-
   // Auth redirect detection
   function isAuthRedirect(response) {
     return response.redirected && response.url.includes('/login');
@@ -197,6 +192,9 @@
         body: JSON.stringify({ text })
       });
       if (!res.ok) throw new Error('Failed to add item');
+      const item = await res.json();
+      items.push(item);
+      renderItems();
     } catch (error) {
       console.error('Failed to add item:', error);
     }
@@ -206,6 +204,10 @@
     try {
       const res = await fetch(`/api/items/${id}`, { method: 'PATCH' });
       if (!res.ok) throw new Error('Failed to toggle item');
+      const updated = await res.json();
+      const index = items.findIndex(i => i.id === id);
+      if (index !== -1) items[index] = updated;
+      renderItems();
     } catch (error) {
       console.error('Failed to toggle item:', error);
     }
@@ -216,6 +218,8 @@
     try {
       const res = await fetch(`/api/items/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Failed to delete item');
+      items = items.filter(i => i.id !== id);
+      renderItems();
       deletedItem = item;
       showSnackbar();
     } catch (error) {
@@ -232,6 +236,9 @@
         body: JSON.stringify(deletedItem)
       });
       if (!res.ok) throw new Error('Failed to restore item');
+      const item = await res.json();
+      items.push(item);
+      renderItems();
       deletedItem = null;
       hideSnackbar();
     } catch (error) {
@@ -294,69 +301,7 @@
     completedSection.classList.toggle('collapsed');
   });
 
-  // SSE
-  function connectSSE() {
-    const eventSource = new EventSource('/api/events');
-
-    eventSource.addEventListener('connected', () => {
-      console.log('SSE connected');
-      sseRetryCount = 0; // Reset on successful connection
-    });
-
-    eventSource.addEventListener('item-added', (e) => {
-      const item = JSON.parse(e.data);
-      if (!items.find(i => i.id === item.id)) {
-        items.push(item);
-        renderItems();
-      }
-    });
-
-    eventSource.addEventListener('item-updated', (e) => {
-      const item = JSON.parse(e.data);
-      const index = items.findIndex(i => i.id === item.id);
-      if (index !== -1) {
-        items[index] = item;
-        renderItems();
-      }
-    });
-
-    eventSource.addEventListener('item-deleted', (e) => {
-      const item = JSON.parse(e.data);
-      items = items.filter(i => i.id !== item.id);
-      renderItems();
-    });
-
-    eventSource.addEventListener('items-reordered', (e) => {
-      const { itemIds } = JSON.parse(e.data);
-      const reordered = [];
-      itemIds.forEach(id => {
-        const item = items.find(i => i.id === id);
-        if (item) reordered.push(item);
-      });
-      items.forEach(item => {
-        if (!reordered.find(i => i.id === item.id)) {
-          reordered.push(item);
-        }
-      });
-      items = reordered;
-      renderItems();
-    });
-
-    eventSource.onerror = () => {
-      eventSource.close();
-      if (sseRetryCount < SSE_MAX_RETRIES) {
-        const delay = SSE_BASE_DELAY * Math.pow(2, sseRetryCount);
-        console.log(`SSE connection lost, retry ${sseRetryCount + 1}/${SSE_MAX_RETRIES} in ${delay}ms`);
-        sseRetryCount++;
-        setTimeout(connectSSE, delay);
-      } else {
-        console.error('SSE connection failed after max retries. Auth may be required.');
-      }
-    };
-  }
-
   loadItems();
-  connectSSE();
 
   // Register service worker
   if ('serviceWorker' in navigator) {

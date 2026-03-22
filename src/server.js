@@ -8,37 +8,9 @@ const PORT = process.env.PORT || 80;
 const MCP_PORT = parseInt(process.env.MCP_PORT || PORT, 10);
 const DISCOVERY_PORT = parseInt(process.env.DISCOVERY_PORT || '9099', 10);
 
-// SSE clients
-const clients = new Set();
-
 // Middleware
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
-
-// Broadcast event to all SSE clients
-function broadcast(event, data) {
-  const message = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
-  clients.forEach(client => {
-    client.write(message);
-  });
-}
-
-// SSE endpoint
-app.get('/api/events', (req, res) => {
-  res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
-  res.setHeader('Connection', 'keep-alive');
-  res.flushHeaders();
-
-  // Send initial connection event
-  res.write('event: connected\ndata: {}\n\n');
-
-  clients.add(res);
-
-  req.on('close', () => {
-    clients.delete(res);
-  });
-});
 
 // GET all items (sorted by order)
 app.get('/api/items', (req, res) => {
@@ -58,7 +30,6 @@ app.post('/api/items', (req, res) => {
       return res.status(400).json({ error: 'Text is required' });
     }
     const item = storage.addItem(text, { order });
-    broadcast('item-added', item);
     res.status(201).json(item);
   } catch (error) {
     res.status(500).json({ error: 'Failed to add item' });
@@ -82,7 +53,6 @@ app.patch('/api/items/:id', (req, res) => {
     if (!item) {
       return res.status(404).json({ error: 'Item not found' });
     }
-    broadcast('item-updated', item);
     res.json(item);
   } catch (error) {
     res.status(500).json({ error: 'Failed to update item' });
@@ -97,7 +67,6 @@ app.post('/api/items/reorder', (req, res) => {
       return res.status(400).json({ error: 'itemIds array is required' });
     }
     const items = storage.reorderItems(itemIds);
-    broadcast('items-reordered', { itemIds });
     res.json(items);
   } catch (error) {
     res.status(500).json({ error: 'Failed to reorder items' });
@@ -112,7 +81,6 @@ app.post('/api/items/restore', (req, res) => {
       return res.status(400).json({ error: 'Item data is required' });
     }
     const item = storage.restoreItem(itemData);
-    broadcast('item-added', item);
     res.status(201).json(item);
   } catch (error) {
     res.status(500).json({ error: 'Failed to restore item' });
@@ -127,7 +95,6 @@ app.delete('/api/items/:id', (req, res) => {
     if (!item) {
       return res.status(404).json({ error: 'Item not found' });
     }
-    broadcast('item-deleted', item);
     res.json(item);
   } catch (error) {
     res.status(500).json({ error: 'Failed to delete item' });
@@ -193,7 +160,6 @@ function handleToolCall(name, args) {
         throw new McpError(-32602, 'text parameter is required');
       }
       const item = storage.addItem(args.text);
-      broadcast('item-added', item);
       return { content: [{ type: 'text', text: JSON.stringify(item, null, 2) }] };
     }
     case 'toggle_item': {
@@ -204,7 +170,6 @@ function handleToolCall(name, args) {
       if (!item) {
         throw new McpError(-32602, 'Item not found');
       }
-      broadcast('item-updated', item);
       return { content: [{ type: 'text', text: JSON.stringify(item, null, 2) }] };
     }
     case 'delete_item': {
@@ -215,7 +180,6 @@ function handleToolCall(name, args) {
       if (!item) {
         throw new McpError(-32602, 'Item not found');
       }
-      broadcast('item-deleted', item);
       return { content: [{ type: 'text', text: JSON.stringify(item, null, 2) }] };
     }
     default:
