@@ -37,7 +37,7 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Skip SSE and API requests - let them go to network
+  // Skip API requests - let them go to network
   if (url.pathname.startsWith('/api/')) {
     return;
   }
